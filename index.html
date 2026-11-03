@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ITE Code Quest</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0d0d1a;
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    background: linear-gradient(90deg, #1a1a2e, #16213e);
+    border-bottom: 2px solid #00d4ff33;
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  #topbar .logo {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #00d4ff, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+  }
+  #topbar .mission {
+    color: #aaa;
+    font-size: 13px;
+  }
+  #topbar .mission span { color: #ffd700; font-weight: 600; }
+
+  #hud {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .hud-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ccc;
+    font-size: 13px;
+  }
+  .health-bar {
+    width: 80px; height: 10px;
+    background: #333;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .health-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4444, #ff8800);
+    border-radius: 5px;
+    transition: width 0.3s;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── GAME PANEL ── */
+  #game-panel {
+    flex: 1;
+    position: relative;
+    background: #0a0a1a;
+    overflow: hidden;
+  }
+  #gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── OBJECTIVE OVERLAY ── */
+  #objective {
+    position: absolute;
+    top: 12px; left: 12px;
+    background: rgba(0,0,0,0.75);
+    border: 1px solid #00d4ff44;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #eee;
+    font-size: 12px;
+    line-height: 1.8;
+    max-width: 220px;
+    backdrop-filter: blur(4px);
+  }
+  #objective .obj-title {
+    color: #00d4ff;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .obj-step { display: flex; align-items: center; gap: 8px; }
+  .obj-step.done { color: #666; text-decoration: line-through; }
+  .obj-step.done .obj-icon { color: #00ff88; }
+  .obj-icon { font-size: 14px; }
+
+  /* ── SPEECH BUBBLE ── */
+  #speech {
+    position: absolute;
+    background: #fff;
+    color: #222;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    z-index: 5;
+  }
+  #speech::after {
+    content: '';
+    position: absolute;
+    bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #fff;
+    border-bottom: 0;
+    width: 0; height: 0;
+  }
+
+  /* ── LOG PANEL ── */
+  #log-panel {
+    width: 38%;
+    min-width: 340px;
+    max-width: 480px;
+    background: #0f0f1e;
+    border-left: 2px solid #1e1e3f;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Tabs */
+  #editor-tabs {
+    display: flex;
+    background: #0a0a18;
+    border-bottom: 1px solid #1e1e3f;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 10px 18px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .tab.active {
+    color: #00d4ff;
+    border-bottom-color: #00d4ff;
+    background: #0f0f1e;
+  }
+  .tab:hover:not(.active) { color: #aaa; }
+
+  /* Code editor area */
+  #editor-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Line numbers + editor */
+  #code-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  #line-numbers {
+    background: #0a0a18;
+    color: #444;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 16px 10px 16px 14px;
+    min-width: 42px;
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid #1e1e3f;
+    overflow: hidden;
+  }
+  #codeEditor {
+    flex: 1;
+    background: #0f0f1e;
+    color: #e0e0ff;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 16px 16px;
+    caret-color: #00d4ff;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+  }
+
+  /* Syntax highlight overlay */
+  #highlight-overlay {
+    position: absolute;
+    top: 0; left: 42px;
+    right: 0; bottom: 0;
+    pointer-events: none;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 16px;
+    color: transparent;
+    white-space: pre;
+    overflow: hidden;
+  }
+
+  /* Current executing line highlight */
+  .exec-highlight {
+    background: rgba(0, 212, 255, 0.08);
+    border-left: 2px solid #00d4ff;
+  }
+
+  /* Controls */
+  #controls {
+    background: #0a0a18;
+    border-top: 1px solid #1e1e3f;
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  #runBtn {
+    background: linear-gradient(135deg, #00d4ff, #0088cc);
+    color: #fff;
+    flex: 1;
+    font-size: 14px;
+    padding: 10px;
+  }
+  #runBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px #00d4ff44; }
+  #runBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  #resetBtn {
+    background: #1e1e3f;
+    color: #aaa;
+    border: 1px solid #333;
+  }
+  #resetBtn:hover { background: #2a2a50; color: #eee; }
+
+  #speed-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #666;
+    font-size: 12px;
+  }
+  #speedSlider {
+    width: 70px;
+    accent-color: #00d4ff;
+  }
+
+  /* Output console */
+  #console-panel {
+    background: #080812;
+    border-top: 1px solid #1e1e3f;
+    height: 110px;
+    overflow-y: auto;
+    padding: 8px 14px;
+    flex-shrink: 0;
+  }
+  #console-panel .con-title {
+    color: #555;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .con-line {
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #888;
+  }
+  .con-line.info  { color: #00d4ff; }
+  .con-line.ok    { color: #00ff88; }
+  .con-line.err   { color: #ff5555; }
+  .con-line.warn  { color: #ffd700; }
+
+  /* ── WIN / LOSE SCREEN ── */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(6px);
+  }
+  #overlay.show { display: flex; }
+  #overlay-box {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 2px solid #00d4ff55;
+    border-radius: 20px;
+    padding: 48px 64px;
+    text-align: center;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  #overlay-title {
+    font-size: 48px;
+    font-weight: 900;
+    background: linear-gradient(90deg, #00d4ff, #a855f7, #ffd700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  #overlay-sub {
+    color: #aaa;
+    font-size: 16px;
+    margin-bottom: 28px;
+  }
+  #overlay-btn {
+    background: linear-gradient(135deg, #00d4ff, #a855f7);
+    color: #fff;
+    border: none;
+    padding: 14px 40px;
+    border-radius: 50px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  #overlay-btn:hover { transform: scale(1.05); }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0a0a18; }
+  ::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a70; }
+
+  /* ── HELPER PANEL ── */
+  #helper-content {
+    padding: 0;
+    color: #aaa;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-y: auto;
+    flex: 1;
+  }
+  #helper-content .cmd { color: #a855f7; font-family: monospace; font-size: 12px; }
+  #helper-content .desc { color: #888; }
+  #helper-content table { width: 100%; border-collapse: collapse; }
+  #helper-content td { padding: 4px 8px; vertical-align: top; }
+  #helper-content tr:hover td { background: #1a1a2e; }
+  .help-section {
+    padding: 14px 16px 6px;
+    border-bottom: 1px solid #1e1e3f;
+  }
+  .help-section:last-child { border-bottom: none; }
+  .help-heading {
+    color: #00d4ff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .help-steps { counter-reset: step; list-style: none; padding: 0; }
+  .help-steps li {
+    counter-increment: step;
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 6px; color: #ccc; font-size: 12px;
+  }
+  .help-steps li::before {
+    content: counter(step);
+    background: #00d4ff22;
+    color: #00d4ff;
+    border: 1px solid #00d4ff44;
+    border-radius: 50%;
+    min-width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .tip-row { display: flex; gap: 6px; margin-bottom: 5px; color: #999; font-size: 11.5px; }
+  .tip-row .tip-icon { color: #ffd700; }
+  .cmd-tag {
+    background: #1a1030; color: #c084fc;
+    border: 1px solid #4a2080;
+    border-radius: 4px; padding: 1px 6px;
+    font-family: monospace; font-size: 11px;
+  }
+  .cmd-ret { color: #00ff88; font-size: 11px; }
+  .param { color: #fbbf24; }
+
+  /* Developer credit */
+  #dev-credit {
+    position: absolute;
+    bottom: 8px; right: 10px;
+    color: #333;
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  /* Help button */
+  #helpBtn {
+    background: #1e1e3f;
+    color: #00d4ff;
+    border: 1px solid #00d4ff44;
+    border-radius: 50%;
+    width: 30px; height: 30px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  #helpBtn:hover { background: #00d4ff22; border-color: #00d4ff; }
+
+  /* ── HELP MODAL ── */
+  #helpModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    backdrop-filter: blur(8px);
+  }
+  #helpModal.show { display: flex; }
+  #helpBox {
+    background: linear-gradient(145deg, #0f0f20, #161630);
+    border: 1.5px solid #00d4ff44;
+    border-radius: 20px;
+    width: 720px;
+    max-width: 95vw;
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #helpBox .modal-header {
+    background: linear-gradient(90deg, #00d4ff11, #a855f711);
+    border-bottom: 1px solid #00d4ff22;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0;
+    backdrop-filter: blur(12px);
+    z-index: 1;
+  }
+  #helpBox .modal-title {
+    font-size: 22px; font-weight: 800;
+    background: linear-gradient(90deg, #00d4ff, #a855f7);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  #helpBox .modal-sub {
+    color: #555; font-size: 12px; margin-top: 2px;
+  }
+  #helpBox .close-btn {
+    background: #1e1e3f; border: 1px solid #333;
+    color: #aaa; border-radius: 8px;
+    padding: 6px 14px; font-size: 13px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  #helpBox .close-btn:hover { background: #2a2a50; color: #fff; }
+  .modal-body { padding: 24px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .modal-col h3 {
+    color: #00d4ff; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.2px;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  }
+  .modal-col p { color: #bbb; font-size: 13px; line-height: 1.7; margin-bottom: 10px; }
+  .modal-story {
+    grid-column: 1 / -1;
+    background: #00d4ff0a;
+    border: 1px solid #00d4ff22;
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: #ccc; font-size: 13px; line-height: 1.8;
+  }
+  .modal-story strong { color: #ffd700; }
+  .cmd-table { width: 100%; border-collapse: collapse; }
+  .cmd-table th {
+    text-align: left; color: #555;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    padding: 4px 8px; border-bottom: 1px solid #1e1e3f;
+  }
+  .cmd-table td { padding: 6px 8px; font-size: 12.5px; vertical-align: top; }
+  .cmd-table tr:hover td { background: #1a1a2e; border-radius: 4px; }
+  .cmd-table td:first-child { font-family: monospace; color: #c084fc; white-space: nowrap; }
+  .cmd-table td:last-child { color: #999; }
+  .obj-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1a1a2e; border: 1px solid #2a2a50;
+    border-radius: 8px; padding: 6px 12px;
+    margin-bottom: 6px; width: 100%;
+    color: #ccc; font-size: 12.5px;
+  }
+  .obj-num {
+    background: #00d4ff22; color: #00d4ff;
+    border: 1px solid #00d4ff44;
+    border-radius: 50%; min-width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .play-btn-wrap { grid-column: 1/-1; text-align: center; padding-top: 8px; }
+  #startPlayBtn {
+    background: linear-gradient(135deg, #00d4ff, #a855f7);
+    color: #fff; border: none;
+    padding: 14px 60px; border-radius: 50px;
+    font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: transform 0.2s;
+    letter-spacing: 0.5px;
+  }
+  #startPlayBtn:hover { transform: scale(1.05); box-shadow: 0 6px 24px #00d4ff44; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="logo">ITE Code Quest</div>
+    <div style="color:#333;font-size:11px;padding-top:1px">by Rajesh R Mohan</div>
+  </div>
+  <div class="mission">
+    Mission: <span>Retrieve the Crystal Key &amp; reach the Exit Gate</span>
+  </div>
+  <div id="hud">
+    <div class="hud-item">
+      ❤️
+      <div class="health-bar"><div class="health-fill" id="healthFill" style="width:100%"></div></div>
+      <span id="healthVal">100</span>
+    </div>
+    <div class="hud-item">⭐ Score: <span id="scoreVal">0</span></div>
+    <div class="hud-item">🔑 Key: <span id="keyVal">No</span></div>
+    <button id="helpBtn" onclick="toggleHelp(true)" title="How to Play">?</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- GAME CANVAS PANEL -->
+  <div id="game-panel">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Objective checklist -->
+    <div id="objective">
+      <div class="obj-title">📋 Objectives</div>
+      <div class="obj-step" id="obj1">
+        <span class="obj-icon">⚔️</span> Defeat the Guards (0/2)
+      </div>
+      <div class="obj-step" id="obj2">
+        <span class="obj-icon">🔑</span> Pick up the Crystal Key
+      </div>
+      <div class="obj-step" id="obj3">
+        <span class="obj-icon">🚪</span> Reach the Exit Gate
+      </div>
+    </div>
+
+    <!-- Speech bubble -->
+    <div id="speech"></div>
+  </div>
+
+  <!-- CODE PANEL -->
+  <div id="log-panel">
+    <div id="editor-tabs">
+      <div class="tab active" onclick="switchTab('editor')">solution.js</div>
+      <div class="tab" onclick="switchTab('helper')">📖 How to Play</div>
+    </div>
+
+    <!-- Editor view -->
+    <div id="editor-wrap">
+      <div id="code-container">
+        <div id="line-numbers">1</div>
+        <textarea id="codeEditor" spellcheck="false"
+          placeholder="// Write your code here..."
+          oninput="updateLineNumbers(); updateHighlight()"
+          onscroll="syncScroll()"
+          onkeydown="handleTab(event)"
+        >// ✨ Guide your hero to victory!
+// Use the commands on the right tab.
+
+// Greet the village
+hero.say("I will save the village!");
+
+// Fight the first guard (top path)
+hero.moveRight(3);
+hero.moveDown(2);
+hero.attack();
+
+// Fight the second guard (near key)
+hero.moveRight(2);
+hero.moveDown(3);
+hero.attack();
+
+// Pick up the Crystal Key
+hero.moveLeft(1);
+hero.pickUp();
+
+// Sprint to the Exit Gate
+hero.moveDown(2);
+hero.moveRight(4);
+</textarea>
+        <div id="highlight-overlay"></div>
+      </div>
+
+      <div id="controls">
+        <button class="btn" id="runBtn" onclick="runCode()">▶ Run Code</button>
+        <button class="btn" id="resetBtn" onclick="resetGame()">↺ Reset</button>
+        <div id="speed-wrap">
+          🐢<input type="range" id="speedSlider" min="1" max="5" value="3">🐇
+        </div>
+      </div>
+
+      <div id="console-panel">
+        <div class="con-title">Console</div>
+        <div id="consoleOut"></div>
+      </div>
+    </div>
+
+    <!-- How to Play view -->
+    <div id="helper-content" style="display:none">
+
+      <div class="help-section">
+        <div class="help-heading">🎯 Objective</div>
+        <ol class="help-steps">
+          <li>Defeat both Guards by moving near them and calling <span class="cmd-tag">hero.attack()</span></li>
+          <li>Walk onto the Crystal Key tile and call <span class="cmd-tag">hero.pickUp()</span></li>
+          <li>Navigate to the green <strong style="color:#00ff88">Exit Gate</strong> (bottom-right) to win</li>
+        </ol>
+      </div>
+
+      <div class="help-section">
+        <div class="help-heading">🕹 How It Works</div>
+        <div style="color:#bbb; font-size:12px; line-height:1.8">
+          Type commands in the <strong style="color:#00d4ff">solution.js</strong> editor.<br>
+          Press <strong style="color:#00d4ff">▶ Run Code</strong> to animate your hero step-by-step.<br>
+          Press <strong style="color:#00d4ff">↺ Reset</strong> to restart from the beginning.<br>
+          Use the <strong style="color:#00d4ff">speed slider</strong> 🐢→🐇 to adjust playback speed.<br>
+          Your code is <strong style="color:#c084fc">real JavaScript</strong> — loops and variables work!
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-heading">📜 Movement Commands</div>
+        <table>
+          <tr>
+            <td class="cmd">hero.moveUp(<span class="param">n</span>)</td>
+            <td class="desc">Move <em>n</em> tiles up</td>
+          </tr>
+          <tr>
+            <td class="cmd">hero.moveDown(<span class="param">n</span>)</td>
+            <td class="desc">Move <em>n</em> tiles down</td>
+          </tr>
+          <tr>
+            <td class="cmd">hero.moveLeft(<span class="param">n</span>)</td>
+            <td class="desc">Move <em>n</em> tiles left</td>
+          </tr>
+          <tr>
+            <td class="cmd">hero.moveRight(<span class="param">n</span>)</td>
+            <td class="desc">Move <em>n</em> tiles right</td>
+          </tr>
+        </table>
+        <div style="color:#555; font-size:11px; margin-top:5px">
+          <em>n</em> is optional — defaults to 1 tile if omitted.
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-heading">⚔ Action Commands</div>
+        <table>
+          <tr>
+            <td class="cmd">hero.attack()</td>
+            <td class="desc">Strike nearest enemy within 2 tiles</td>
+          </tr>
+          <tr>
+            <td class="cmd">hero.pickUp()</td>
+            <td class="desc">Collect item on your current tile</td>
+          </tr>
+          <tr>
+            <td class="cmd">hero.say(<span class="param">"text"</span>)</td>
+            <td class="desc">Show speech bubble above hero</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-heading">🔁 Loops (JavaScript)</div>
+        <div style="background:#080812; border-radius:6px; padding:10px 12px; font-family:monospace; font-size:12px; color:#ccc; line-height:1.8">
+          <span style="color:#c084fc">for</span>(<span style="color:#fbbf24">let</span> i = 0; i &lt; 3; i++) {<br>
+          &nbsp;&nbsp;hero.moveRight();<br>
+          }<br>
+          <br>
+          <span style="color:#555">// Moves right 3 times</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-heading">💡 Tips</div>
+        <div class="tip-row"><span class="tip-icon">▸</span><span>Guards are beaten in <strong style="color:#fff">1 hit</strong> — be within 2 tiles first.</span></div>
+        <div class="tip-row"><span class="tip-icon">▸</span><span>You must stand <strong style="color:#fff">on the Key tile</strong> to pickUp().</span></div>
+        <div class="tip-row"><span class="tip-icon">▸</span><span>The Exit Gate glows green at the <strong style="color:#fff">right edge, row 8</strong>.</span></div>
+        <div class="tip-row"><span class="tip-icon">▸</span><span>Trees, water, and houses are <strong style="color:#fff">impassable</strong>.</span></div>
+        <div class="tip-row"><span class="tip-icon">▸</span><span>Use <code style="color:#c084fc">hero.say()</code> to visually debug your position.</span></div>
+        <div class="tip-row" style="margin-top:10px; padding-top:10px; border-top:1px solid #1e1e3f">
+          <span class="tip-icon">ℹ</span>
+          <span style="color:#555">ITE Code Quest · Developer: <strong style="color:#444">Rajesh R Mohan</strong></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DEVELOPER CREDIT ON CANVAS -->
+<div id="dev-credit">ITE Code Quest · Developer: Rajesh R Mohan</div>
+
+<!-- HELP MODAL -->
+<div id="helpModal" class="show">
+  <div id="helpBox">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">⚔ ITE Code Quest</div>
+        <div class="modal-sub">Developer: Rajesh R Mohan &nbsp;|&nbsp; How to Play</div>
+      </div>
+      <button class="close-btn" onclick="toggleHelp(false)">✕ Close</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Story -->
+      <div class="modal-story">
+        🌙 <strong>The Story:</strong> The village of Aethoria is under siege. Two guards have stolen the
+        <strong>Crystal Key</strong> that seals the ancient Evil Gate. You are the hero — but you cannot move
+        on your own. <strong>Write JavaScript code</strong> in the editor to command your hero, defeat the
+        guards, retrieve the key, and escape through the Exit Gate before darkness falls.
+      </div>
+
+      <!-- Objectives -->
+      <div class="modal-col">
+        <h3>🎯 Objectives (in order)</h3>
+        <div class="obj-pill"><span class="obj-num">1</span> Defeat both Guards — move near them and call <span class="cmd-tag">hero.attack()</span></div>
+        <div class="obj-pill"><span class="obj-num">2</span> Walk onto the Crystal Key tile and call <span class="cmd-tag">hero.pickUp()</span></div>
+        <div class="obj-pill"><span class="obj-num">3</span> Navigate to the green Exit Gate (bottom-right) to win</div>
+
+        <h3 style="margin-top:16px">🕹 How It Works</h3>
+        <p>
+          Type commands in the <strong style="color:#00d4ff">solution.js</strong> editor on the right.
+          Press <strong style="color:#00d4ff">▶ Run Code</strong> to execute them step-by-step with animations.
+          Use <strong style="color:#00d4ff">↺ Reset</strong> to start over at any time.
+          Adjust the 🐢→🐇 <strong style="color:#00d4ff">speed slider</strong> to slow down or speed up playback.
+        </p>
+        <p>
+          Your code is real JavaScript — so <code style="color:#c084fc">for</code> loops, variables,
+          and functions all work. The <code style="color:#c084fc">hero</code> object is your only
+          interface to the game world.
+        </p>
+      </div>
+
+      <!-- Commands -->
+      <div class="modal-col">
+        <h3>📜 Command Reference</h3>
+        <table class="cmd-table">
+          <tr><th>Command</th><th>Effect</th></tr>
+          <tr>
+            <td>hero.moveUp(<span class="param">n</span>)</td>
+            <td>Move <em>n</em> tiles upward (default 1)</td>
+          </tr>
+          <tr>
+            <td>hero.moveDown(<span class="param">n</span>)</td>
+            <td>Move <em>n</em> tiles downward (default 1)</td>
+          </tr>
+          <tr>
+            <td>hero.moveLeft(<span class="param">n</span>)</td>
+            <td>Move <em>n</em> tiles to the left</td>
+          </tr>
+          <tr>
+            <td>hero.moveRight(<span class="param">n</span>)</td>
+            <td>Move <em>n</em> tiles to the right</td>
+          </tr>
+          <tr>
+            <td>hero.attack()</td>
+            <td>Strike the nearest enemy within 2 tiles</td>
+          </tr>
+          <tr>
+            <td>hero.pickUp()</td>
+            <td>Collect the item on your current tile</td>
+          </tr>
+          <tr>
+            <td>hero.say(<span class="param">"text"</span>)</td>
+            <td>Display a speech bubble above the hero</td>
+          </tr>
+          <tr>
+            <td>for / while loops</td>
+            <td>Standard JS loops work natively</td>
+          </tr>
+        </table>
+
+        <div style="margin-top:14px">
+          <div style="color:#555;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💡 Tips</div>
+          <div class="tip-row"><span class="tip-icon">▸</span> Guards are defeated in <strong style="color:#fff">1 hit</strong> — but you must be within 2 tiles.</div>
+          <div class="tip-row"><span class="tip-icon">▸</span> You must be <strong style="color:#fff">standing on</strong> the Key tile to pick it up.</div>
+          <div class="tip-row"><span class="tip-icon">▸</span> The Exit Gate (green glow) is at the <strong style="color:#fff">right edge</strong>, row 8.</div>
+          <div class="tip-row"><span class="tip-icon">▸</span> Walls, trees, water, and houses are <strong style="color:#fff">impassable</strong>.</div>
+          <div class="tip-row"><span class="tip-icon">▸</span> Use <code style="color:#c084fc">hero.say()</code> to debug your hero's position visually.</div>
+        </div>
+      </div>
+
+      <!-- Start button -->
+      <div class="play-btn-wrap">
+        <button id="startPlayBtn" onclick="toggleHelp(false)">▶ Start Playing</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- WIN/LOSE OVERLAY -->
+<div id="overlay">
+  <div id="overlay-box">
+    <div id="overlay-title">Victory! 🏆</div>
+    <div id="overlay-sub">You retrieved the Crystal Key and saved the village!</div>
+    <button id="overlay-btn" onclick="resetGame()">Play Again</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS & TILE MAP
+// ═══════════════════════════════════════════════════════
+const TILE = 56;   // tile size in px
+const COLS = 14;
+const ROWS = 11;
+
+// Tile types
+const T = {
+  GRASS:  0,
+  WATER:  1,
+  STONE:  2,
+  TREE:   3,
+  HOUSE:  4,
+  PATH:   5,
+  FLOWER: 6,
+  FENCE:  7,
+  DOOR:   8,
+};
+
+// Map layout (11 rows × 14 cols)
+const MAP = [
+  [3,3,3,1,1,1,1,1,3,3,3,3,3,3],
+  [3,5,5,5,5,5,5,5,5,5,5,5,3,3],
+  [3,5,4,4,5,5,4,4,5,5,4,5,3,3],
+  [3,5,4,4,5,5,4,4,5,5,5,5,3,3],
+  [3,5,5,5,5,5,5,5,5,5,5,5,3,3],
+  [3,5,5,5,5,5,5,5,5,5,5,5,5,3],
+  [3,5,5,5,5,5,5,5,5,5,5,5,5,3],
+  [3,3,5,5,5,5,5,5,5,5,5,5,5,3],
+  [3,3,3,5,5,5,5,5,5,5,5,5,5,8],
+  [3,3,3,3,5,5,5,5,5,5,5,5,5,5],
+  [3,3,3,3,3,3,5,5,5,3,3,3,3,3],
+];
+
+// Walkable check
+function isWalkable(col, row) {
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
+  const t = MAP[row][col];
+  return t !== T.WATER && t !== T.TREE && t !== T.HOUSE && t !== T.FENCE;
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════
+let hero, enemies, key, exit, particles, floatingTexts;
+let score, defeated, hasKey, gameOver, running;
+
+function initState() {
+  hero = { col: 1, row: 5, px: 0, py: 0, health: 100, maxHealth: 100,
+           animFrame: 0, animTick: 0, facing: 'right', moving: false,
+           attacking: false, attackAnim: 0 };
+  enemies = [
+    { col: 5, row: 2, health: 1, maxHealth: 1, alive: true,
+      facing: 'left', animFrame: 0, animTick: 0, id: 0 },
+    { col: 8, row: 6, health: 1, maxHealth: 1, alive: true,
+      facing: 'right', animFrame: 0, animTick: 0, id: 1 },
+  ];
+  key   = { col: 7, row: 8, collected: false };
+  exit  = { col: 13, row: 8 };
+  particles     = [];
+  floatingTexts = [];
+  score    = 0;
+  defeated = 0;
+  hasKey   = false;
+  gameOver = false;
+  running  = false;
+
+  // snap hero px/py to tile
+  hero.px = hero.col * TILE;
+  hero.py = hero.row * TILE;
+
+  updateHUD();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const panel = document.getElementById('game-panel');
+  canvas.width  = panel.clientWidth;
+  canvas.height = panel.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function camOffset() {
+  // Center camera on hero
+  const cx = hero.px + TILE/2 - canvas.width/2;
+  const cy = hero.py + TILE/2 - canvas.height/2;
+  return {
+    x: Math.max(0, Math.min(cx, COLS*TILE - canvas.width)),
+    y: Math.max(0, Math.min(cy, ROWS*TILE - canvas.height))
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  DRAWING HELPERS
+// ═══════════════════════════════════════════════════════
+function drawTile(col, row, ox, oy) {
+  const x = col * TILE - ox;
+  const y = row * TILE - oy;
+  if (x < -TILE || x > canvas.width+TILE || y < -TILE || y > canvas.height+TILE) return;
+
+  const t = MAP[row][col];
+  const cx = x + TILE/2, cy = y + TILE/2;
+
+  // Base
+  switch(t) {
+    case T.GRASS:
+      ctx.fillStyle = '#3a7a3a';
+      ctx.fillRect(x, y, TILE, TILE);
+      // Subtle texture
+      ctx.fillStyle = '#3d803d';
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(x + (i*14+3)%TILE, y + (i*17+5)%TILE, 3, 2);
+      }
+      break;
+    case T.WATER:
+      ctx.fillStyle = '#1a6b9a';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = '#2180b8';
+      const wt = (Date.now()/1200 + col*0.4 + row*0.3) % (Math.PI*2);
+      ctx.fillRect(x+6, y + TILE/2 - 3 + Math.sin(wt)*3, TILE-12, 5);
+      ctx.fillStyle = '#52a8d8';
+      ctx.fillRect(x+12, y + TILE/2 - 6 + Math.sin(wt+1)*3, TILE-24, 3);
+      break;
+    case T.STONE:
+      ctx.fillStyle = '#555';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = '#666';
+      ctx.fillRect(x+4, y+4, TILE-8, TILE-8);
+      break;
+    case T.PATH:
+      ctx.fillStyle = '#c4a565';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = '#b89850';
+      ctx.fillRect(x+2, y+2, TILE-4, TILE-4);
+      // Cobble lines
+      ctx.strokeStyle = '#a08040';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x+TILE/2, y+2); ctx.lineTo(x+TILE/2, y+TILE-2);
+      ctx.moveTo(x+2, y+TILE/2); ctx.lineTo(x+TILE-2, y+TILE/2);
+      ctx.stroke();
+      break;
+    case T.TREE:
+      ctx.fillStyle = '#3a7a3a';
+      ctx.fillRect(x, y, TILE, TILE);
+      // Trunk
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(cx-4, y+TILE*0.6, 8, TILE*0.4);
+      // Canopy layers
+      ctx.fillStyle = '#1a5c1a';
+      ctx.beginPath(); ctx.arc(cx, y+TILE*0.45, TILE*0.35, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#2a7a2a';
+      ctx.beginPath(); ctx.arc(cx-5, y+TILE*0.38, TILE*0.28, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx+5, y+TILE*0.38, TILE*0.28, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#3d9c3d';
+      ctx.beginPath(); ctx.arc(cx, y+TILE*0.3, TILE*0.22, 0, Math.PI*2); ctx.fill();
+      break;
+    case T.HOUSE:
+      ctx.fillStyle = '#c4a565';
+      ctx.fillRect(x, y, TILE, TILE);
+      // Wall
+      ctx.fillStyle = '#d4956a';
+      ctx.fillRect(x+4, y+TILE*0.35, TILE-8, TILE*0.65);
+      // Roof
+      ctx.fillStyle = '#8b3a3a';
+      ctx.beginPath();
+      ctx.moveTo(x+TILE/2, y+4);
+      ctx.lineTo(x+TILE-4, y+TILE*0.4);
+      ctx.lineTo(x+4, y+TILE*0.4);
+      ctx.closePath(); ctx.fill();
+      // Door
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(cx-5, y+TILE*0.65, 10, TILE*0.35);
+      // Window
+      ctx.fillStyle = '#ffffaa88';
+      ctx.fillRect(cx+8, y+TILE*0.45, 10, 8);
+      ctx.fillRect(cx-18, y+TILE*0.45, 10, 8);
+      break;
+    case T.FLOWER:
+      ctx.fillStyle = '#3a7a3a';
+      ctx.fillRect(x, y, TILE, TILE);
+      // Flowers
+      const fColors = ['#ff6688','#ffaa22','#aa55ff'];
+      for (let fi = 0; fi < 3; fi++) {
+        const fx = x + 8 + fi*16, fy = y + 10 + (fi%2)*14;
+        ctx.fillStyle = '#5a9a2a';
+        ctx.fillRect(fx+2, fy+4, 2, 10);
+        ctx.fillStyle = fColors[fi];
+        ctx.beginPath(); ctx.arc(fx+3, fy, 5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(fx+3, fy, 2, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    case T.DOOR:
+      ctx.fillStyle = '#c4a565';
+      ctx.fillRect(x, y, TILE, TILE);
+      // Gate posts
+      ctx.fillStyle = '#8b6914';
+      ctx.fillRect(x+4, y, 10, TILE);
+      ctx.fillRect(x+TILE-14, y, 10, TILE);
+      // Gate bar (open/closed based on game state)
+      if (!hasKey) {
+        ctx.fillStyle = '#cc4444';
+        ctx.fillRect(x+14, y+TILE/2-4, TILE-28, 8);
+        // Lock icon
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath(); ctx.arc(cx, y+TILE/2-2, 6, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.fillStyle = '#00cc66';
+        ctx.fillRect(x+14, y+4, TILE-28, 6);
+      }
+      break;
+  }
+
+  // Grid shadow (subtle)
+  ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(x, y, TILE, TILE);
+}
+
+function drawHero(ox, oy) {
+  const x = hero.px - ox;
+  const y = hero.py - oy;
+  if (x < -TILE*2 || x > canvas.width+TILE*2) return;
+
+  const bounce = hero.moving ? Math.sin(hero.animTick * 0.35) * 3 : 0;
+  const cx = x + TILE/2, cy = y + TILE/2 + bounce;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(cx, y+TILE-6, 14, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Cape / body glow
+  if (hero.attacking) {
+    ctx.fillStyle = `rgba(255,160,0,${0.3 - hero.attackAnim*0.01})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, TILE*0.48, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Body
+  ctx.fillStyle = '#3388ff';
+  roundRect(ctx, cx-10, cy-8, 20, 22, 5);
+  ctx.fill();
+
+  // Cape
+  ctx.fillStyle = '#cc2244';
+  ctx.beginPath();
+  ctx.moveTo(cx-8, cy-4);
+  ctx.lineTo(cx-14, cy+16);
+  ctx.lineTo(cx+14, cy+16);
+  ctx.lineTo(cx+8, cy-4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#f0c080';
+  ctx.beginPath();
+  ctx.arc(cx, cy-14, 10, 0, Math.PI*2);
+  ctx.fill();
+
+  // Hair
+  ctx.fillStyle = '#5a3010';
+  ctx.beginPath();
+  ctx.arc(cx, cy-20, 10, Math.PI, 0);
+  ctx.fill();
+  ctx.fillRect(cx-10, cy-22, 20, 6);
+
+  // Eyes
+  const eyeX = hero.facing === 'left' ? -3 : 3;
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(cx + eyeX - 2, cy-14, 2, 0, Math.PI*2);
+  ctx.arc(cx + eyeX + 2, cy-14, 2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Sword
+  const sAngle = hero.attacking ? -Math.PI/3 + hero.attackAnim * 0.08 : -Math.PI/6;
+  ctx.save();
+  ctx.translate(cx + (hero.facing==='left'?-12:12), cy);
+  ctx.rotate(sAngle);
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(-2, -18, 4, 22);
+  ctx.fillStyle = '#f0d060';
+  ctx.fillRect(-6, -2, 12, 4);
+  ctx.fillStyle = '#5a3010';
+  ctx.fillRect(-3, 4, 6, 8);
+  ctx.restore();
+
+  // Legs
+  const legPhase = hero.moving ? hero.animTick * 0.4 : 0;
+  ctx.fillStyle = '#224488';
+  ctx.fillRect(cx-9, cy+14, 8, 12 + Math.sin(legPhase)*4);
+  ctx.fillRect(cx+1, cy+14, 8, 12 - Math.sin(legPhase)*4);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(cx-10, cy+24 + Math.sin(legPhase)*4, 9, 4);
+  ctx.fillRect(cx+1, cy+24 - Math.sin(legPhase)*4, 9, 4);
+}
+
+function drawEnemy(e, ox, oy) {
+  if (!e.alive) return;
+  const x = e.col * TILE - ox;
+  const y = e.row * TILE - oy;
+  const cx = x + TILE/2;
+  const bounce = Math.sin(e.animTick * 0.25) * 2;
+  const cy = y + TILE/2 + bounce;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(cx, y+TILE-6, 12, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Body — armored guard
+  ctx.fillStyle = '#556677';
+  roundRect(ctx, cx-10, cy-6, 20, 20, 4);
+  ctx.fill();
+
+  // Armor highlights
+  ctx.fillStyle = '#778899';
+  ctx.fillRect(cx-8, cy-4, 6, 14);
+  ctx.fillRect(cx+2, cy-4, 6, 14);
+
+  // Head / helmet
+  ctx.fillStyle = '#445566';
+  ctx.beginPath(); ctx.arc(cx, cy-14, 11, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#334455';
+  ctx.fillRect(cx-11, cy-18, 22, 8);
+  // Visor slit
+  ctx.fillStyle = '#ff4422';
+  ctx.fillRect(cx-7, cy-16, 14, 4);
+
+  // Axe
+  const axeFlip = e.facing === 'left' ? -1 : 1;
+  ctx.save();
+  ctx.translate(cx + axeFlip*14, cy-4);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(-2, -14, 4, 24);
+  ctx.fillStyle = '#ccc';
+  ctx.beginPath();
+  ctx.moveTo(0, -14);
+  ctx.lineTo(axeFlip*14, -4);
+  ctx.lineTo(axeFlip*14, 6);
+  ctx.lineTo(0, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Health bar
+  const bw = 38, bh = 5;
+  ctx.fillStyle = '#300';
+  ctx.fillRect(cx - bw/2, y+2, bw, bh);
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(cx - bw/2, y+2, bw * (e.health/e.maxHealth), bh);
+
+  // Enemy tick
+  e.animTick++;
+}
+
+function drawKey(ox, oy) {
+  if (key.collected) return;
+  const x = key.col * TILE - ox + TILE/2;
+  const y = key.row * TILE - oy + TILE/2;
+  const bob = Math.sin(Date.now()/500) * 4;
+
+  // Glow
+  ctx.fillStyle = `rgba(255,220,0,${0.15 + Math.sin(Date.now()/400)*0.08})`;
+  ctx.beginPath(); ctx.arc(x, y+bob, 22, 0, Math.PI*2); ctx.fill();
+
+  // Key body
+  ctx.fillStyle = '#ffd700';
+  ctx.strokeStyle = '#cc9900';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x-4, y-6+bob, 8, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x+4, y-6+bob);
+  ctx.lineTo(x+16, y-6+bob);
+  ctx.lineWidth = 5; ctx.strokeStyle = '#ffd700'; ctx.stroke();
+
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(x+10, y-8+bob, 3, 5);
+  ctx.fillRect(x+14, y-8+bob, 3, 5);
+
+  // "KEY" label
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('KEY', x+2, y+20+bob);
+}
+
+function drawExit(ox, oy) {
+  const x = exit.col * TILE - ox;
+  const y = exit.row * TILE - oy;
+  const cx = x + TILE/2;
+  const glow = 0.3 + Math.sin(Date.now()/600)*0.2;
+
+  // Portal glow
+  ctx.fillStyle = `rgba(0,255,180,${glow})`;
+  ctx.beginPath(); ctx.arc(cx, y+TILE/2, TILE*0.5, 0, Math.PI*2); ctx.fill();
+
+  // Portal ring
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, y+TILE/2, TILE*0.4, 0, Math.PI*2); ctx.stroke();
+
+  ctx.strokeStyle = '#ffffff88';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, y+TILE/2, TILE*0.3, 0, Math.PI*2); ctx.stroke();
+
+  // EXIT text
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('EXIT', cx, y+TILE/2+4);
+}
+
+function drawParticles(ox, oy) {
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x - ox, p.y - oy, p.r, 0, Math.PI*2);
+    ctx.fill();
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.08;
+    p.r *= 0.96;
+    p.life--;
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFloatingTexts(ox, oy) {
+  floatingTexts = floatingTexts.filter(t => t.life > 0);
+  for (const ft of floatingTexts) {
+    ctx.globalAlpha = ft.life / ft.maxLife;
+    ctx.fillStyle = ft.color;
+    ctx.font = `bold ${ft.size}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x - ox, ft.y - oy);
+    ft.y -= 1.2;
+    ft.life--;
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAIN RENDER LOOP
+// ═══════════════════════════════════════════════════════
+let lastTime = 0;
+function renderLoop(ts) {
+  requestAnimationFrame(renderLoop);
+  const dt = ts - lastTime; lastTime = ts;
+
+  // Smooth camera
+  const cam = camOffset();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background fill (for off-map)
+  ctx.fillStyle = '#1a3a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Tiles
+  for (let row = 0; row < ROWS; row++)
+    for (let col = 0; col < COLS; col++)
+      drawTile(col, row, cam.x, cam.y);
+
+  // Decorations: random flowers on grass tiles
+  drawStaticDecorations(cam.x, cam.y);
+
+  // Key
+  drawKey(cam.x, cam.y);
+  // Exit
+  drawExit(cam.x, cam.y);
+  // Enemies
+  for (const e of enemies) drawEnemy(e, cam.x, cam.y);
+  // Hero
+  drawHero(cam.x, cam.y);
+  // Particles
+  drawParticles(cam.x, cam.y);
+  drawFloatingTexts(cam.x, cam.y);
+
+  // Hero animations
+  hero.animTick++;
+  if (hero.attacking) {
+    hero.attackAnim++;
+    if (hero.attackAnim > 18) { hero.attacking = false; hero.attackAnim = 0; }
+  }
+
+  // Smooth hero movement
+  const tx = hero.col * TILE, ty = hero.row * TILE;
+  const dx = tx - hero.px, dy = ty - hero.py;
+  const speed = 5 + (6 - parseInt(document.getElementById('speedSlider').value)) * 1.5;
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+    hero.px += dx / speed;
+    hero.py += dy / speed;
+    hero.moving = true;
+  } else {
+    hero.px = tx; hero.py = ty;
+    hero.moving = false;
+  }
+}
+
+// Static decorations (seeded by tile position)
+const DECOR_SEED = [];
+for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+  if (MAP[r][c] === T.GRASS) {
+    const h = (c * 7 + r * 13) % 100;
+    if (h < 20) DECOR_SEED.push({ col: c, row: r, type: h % 3 });
+  }
+}
+
+function drawStaticDecorations(ox, oy) {
+  for (const d of DECOR_SEED) {
+    const x = d.col * TILE - ox + (d.row * 11 + d.col * 7) % (TILE-12) + 4;
+    const y = d.row * TILE - oy + (d.col * 13 + d.row * 9) % (TILE-12) + 4;
+    if (d.type === 0) {
+      // small rock
+      ctx.fillStyle = '#999'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+    } else if (d.type === 1) {
+      // grass tuft
+      ctx.strokeStyle = '#5aaa2a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, y+4); ctx.lineTo(x-2, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y+4); ctx.lineTo(x+2, y); ctx.stroke();
+    }
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PARTICLE EFFECTS
+// ═══════════════════════════════════════════════════════
+function spawnParticles(worldX, worldY, color, count=12) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.5 + Math.random() * 3;
+    particles.push({
+      x: worldX + TILE/2, y: worldY + TILE/2,
+      vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 2,
+      r: 3 + Math.random()*4,
+      color, life: 35 + Math.random()*20, maxLife: 55
+    });
+  }
+}
+
+function spawnFloatingText(worldX, worldY, text, color='#fff', size=16) {
+  floatingTexts.push({
+    x: worldX + TILE/2, y: worldY + TILE/2 - 10,
+    text, color, size, life: 50, maxLife: 50
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  COMMAND EXECUTION ENGINE
+// ═══════════════════════════════════════════════════════
+let cmdQueue = [];
+let executing = false;
+let speechTimeout = null;
+
+function getStepDelay() {
+  const v = parseInt(document.getElementById('speedSlider').value);
+  return [900, 650, 450, 280, 120][v-1];
+}
+
+function waitForHeroIdle() {
+  return new Promise(res => {
+    const check = () => {
+      const tx = hero.col * TILE, ty = hero.row * TILE;
+      if (Math.abs(hero.px - tx) < 2 && Math.abs(hero.py - ty) < 2) res();
+      else setTimeout(check, 30);
+    };
+    check();
+  });
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Hero proxy
+const heroAPI = {
+  moveUp:    async (n=1) => { for(let i=0;i<n;i++) await doMove(0,-1); },
+  moveDown:  async (n=1) => { for(let i=0;i<n;i++) await doMove(0, 1); },
+  moveLeft:  async (n=1) => { for(let i=0;i<n;i++) await doMove(-1,0); },
+  moveRight: async (n=1) => { for(let i=0;i<n;i++) await doMove( 1,0); },
+  attack:    async ()    => { await doAttack(); },
+  pickUp:    async ()    => { await doPickUp(); },
+  say:       async (msg) => { await doSay(msg); },
+};
+
+async function doMove(dc, dr) {
+  if (gameOver) return;
+  const nc = hero.col + dc, nr = hero.row + dr;
+  if (!isWalkable(nc, nr)) {
+    logLine(`🚫 Can't move there (blocked)`, 'warn');
+    return;
+  }
+  hero.col = nc; hero.row = nr;
+  hero.facing = dc > 0 ? 'right' : dc < 0 ? 'left' : hero.facing;
+  logLine(`→ hero moved to (${nc}, ${nr})`, 'info');
+  await waitForHeroIdle();
+  await delay(getStepDelay() * 0.15);
+}
+
+async function doAttack() {
+  if (gameOver) return;
+  hero.attacking = true; hero.attackAnim = 0;
+  const ax = hero.col * TILE, ay = hero.row * TILE;
+  let hit = false;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const dist = Math.abs(e.col - hero.col) + Math.abs(e.row - hero.row);
+    if (dist <= 2) {
+      e.health--;
+      hit = true;
+      spawnParticles(e.col*TILE, e.row*TILE, '#ff6600');
+      spawnFloatingText(e.col*TILE, e.row*TILE, '-1', '#ff4444', 18);
+      if (e.health <= 0) {
+        e.alive = false;
+        defeated++;
+        score += 50;
+        spawnParticles(e.col*TILE, e.row*TILE, '#ffd700', 20);
+        spawnFloatingText(e.col*TILE, e.row*TILE, '+50', '#ffd700', 20);
+        logLine(`⚔️ Guard defeated! (+50 pts)`, 'ok');
+        updateObjectives();
+      } else {
+        logLine(`⚔️ Hit guard! (${e.health} HP remaining)`, 'ok');
+      }
+      break;
+    }
+  }
+  if (!hit) {
+    spawnParticles(ax + hero.facing==='right'?TILE*1.5:0, ay, '#88aaff', 6);
+    logLine(`⚔️ Attack missed — no enemy in range`, 'warn');
+  }
+  updateHUD();
+  await delay(getStepDelay());
+}
+
+async function doPickUp() {
+  if (gameOver) return;
+  if (!key.collected && hero.col === key.col && hero.row === key.row) {
+    key.collected = true;
+    hasKey = true;
+    score += 30;
+    spawnParticles(key.col*TILE, key.row*TILE, '#ffd700', 24);
+    spawnFloatingText(key.col*TILE, key.row*TILE, '🔑 +30', '#ffd700', 18);
+    logLine(`🔑 Crystal Key collected! (+30 pts)`, 'ok');
+    updateObjectives();
+    updateHUD();
+  } else if (key.collected) {
+    logLine(`🔑 Already have the key`, 'warn');
+  } else {
+    logLine(`🔑 No item here to pick up`, 'warn');
+  }
+  await delay(getStepDelay() * 0.5);
+}
+
+async function doSay(msg) {
+  if (gameOver) return;
+  const cam = camOffset();
+  const sx = hero.px - cam.x + TILE/2;
+  const sy = hero.py - cam.y - 30;
+  const speechEl = document.getElementById('speech');
+  speechEl.textContent = `"${msg}"`;
+  speechEl.style.display = 'block';
+  speechEl.style.left = (sx - speechEl.offsetWidth/2) + 'px';
+  speechEl.style.top  = sy + 'px';
+  logLine(`💬 Hero: "${msg}"`, 'info');
+  if (speechTimeout) clearTimeout(speechTimeout);
+  speechTimeout = setTimeout(() => { speechEl.style.display='none'; }, 2800);
+  await delay(getStepDelay());
+}
+
+// Check win condition after every command
+function checkWin() {
+  if (hasKey && hero.col >= exit.col - 1 && hero.row === exit.row) {
+    gameOver = true;
+    score += 100;
+    updateHUD();
+    setTimeout(() => {
+      document.getElementById('overlay-title').textContent = '🏆 Victory!';
+      document.getElementById('overlay-sub').textContent =
+        `You retrieved the Crystal Key and saved the village! Score: ${score}`;
+      document.getElementById('overlay').classList.add('show');
+    }, 600);
+    logLine(`🎉 Quest Complete! Final score: ${score}`, 'ok');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CODE RUNNER
+// ═══════════════════════════════════════════════════════
+async function runCode() {
+  if (running) return;
+  running = true;
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('consoleOut').innerHTML = '';
+  logLine('▶ Running code...', 'info');
+
+  const code = document.getElementById('codeEditor').value;
+
+  // Build async wrapper that intercepts hero.* calls
+  const asyncCode = `(async function(hero) {\n${code}\n})`;
+
+  try {
+    const fn = eval(asyncCode);
+    await fn(heroAPI);
+    if (!gameOver) {
+      checkWin();
+      if (!gameOver) logLine('✓ Code finished. Check objectives!', 'info');
+    }
+  } catch (err) {
+    logLine(`❌ Error: ${err.message}`, 'err');
+  }
+
+  running = false;
+  document.getElementById('runBtn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════
+//  HUD & OBJECTIVES
+// ═══════════════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('healthFill').style.width = (hero.health / hero.maxHealth * 100) + '%';
+  document.getElementById('healthVal').textContent = hero.health;
+  document.getElementById('scoreVal').textContent  = score;
+  document.getElementById('keyVal').textContent    = hasKey ? 'Yes ✓' : 'No';
+}
+
+function updateObjectives() {
+  const o1 = document.getElementById('obj1');
+  const o2 = document.getElementById('obj2');
+  const o3 = document.getElementById('obj3');
+
+  o1.innerHTML = `<span class="obj-icon">${defeated>=2?'✅':'⚔️'}</span> Defeat the Guards (${defeated}/2)`;
+  if (defeated >= 2) o1.classList.add('done');
+
+  if (hasKey) {
+    o2.innerHTML = `<span class="obj-icon">✅</span> Pick up the Crystal Key`;
+    o2.classList.add('done');
+  }
+  if (gameOver) {
+    o3.innerHTML = `<span class="obj-icon">✅</span> Reach the Exit Gate`;
+    o3.classList.add('done');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONSOLE
+// ═══════════════════════════════════════════════════════
+function logLine(text, cls='') {
+  const el = document.getElementById('consoleOut');
+  const div = document.createElement('div');
+  div.className = 'con-line ' + cls;
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════
+//  EDITOR UTILITIES
+// ═══════════════════════════════════════════════════════
+function updateLineNumbers() {
+  const lines = document.getElementById('codeEditor').value.split('\n').length;
+  document.getElementById('line-numbers').innerHTML =
+    Array.from({length: lines}, (_, i) => i+1).join('<br>');
+}
+
+function handleTab(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta = e.target;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(end);
+    ta.selectionStart = ta.selectionEnd = start + 2;
+    updateLineNumbers();
+  }
+}
+
+function syncScroll() {
+  const ta = document.getElementById('codeEditor');
+  document.getElementById('line-numbers').scrollTop = ta.scrollTop;
+}
+
+function updateHighlight() {
+  // Simple keyword coloring via CSS — textarea does not support rich styling
+  // We rely on monospace font and color scheme
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  const editor = document.getElementById('editor-wrap');
+  const helper = document.getElementById('helper-content');
+  if (tab === 'editor') {
+    editor.style.display = 'flex';
+    helper.style.display = 'none';
+  } else {
+    editor.style.display = 'none';
+    helper.style.display = 'block';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELP MODAL
+// ═══════════════════════════════════════════════════════
+function toggleHelp(show) {
+  document.getElementById('helpModal').classList.toggle('show', show);
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════════════════
+function resetGame() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('speech').style.display = 'none';
+  document.getElementById('consoleOut').innerHTML = '';
+  if (speechTimeout) clearTimeout(speechTimeout);
+  running = false;
+  document.getElementById('runBtn').disabled = false;
+  initState();
+  updateObjectives();
+  logLine('Game reset. Write your code and press ▶ Run!', 'info');
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════
+initState();
+updateLineNumbers();
+logLine('Welcome to Code Quest! Write code to guide your hero.', 'ok');
+logLine('Click the "Commands" tab for a list of available commands.', 'info');
+requestAnimationFrame(renderLoop);
+</script>
+</body>
+</html>
